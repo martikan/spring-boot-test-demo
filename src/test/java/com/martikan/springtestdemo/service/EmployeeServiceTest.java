@@ -4,6 +4,7 @@ import com.github.javafaker.Faker;
 import com.martikan.springtestdemo.domain.Employee;
 import com.martikan.springtestdemo.dto.EmployeeDTO;
 import com.martikan.springtestdemo.exception.BadRequestException;
+import com.martikan.springtestdemo.exception.ResourceNotFoundException;
 import com.martikan.springtestdemo.mapper.EmployeeMapper;
 import com.martikan.springtestdemo.repository.EmployeeRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,6 +18,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
 import java.util.Collections;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -84,7 +86,7 @@ public class EmployeeServiceTest {
 
     @DisplayName("Saving employee service call - Happy flow")
     @Test
-    void whenSaveEmployee_thenReturnsEmployee() {
+    void whenSaveEmployee_thenReturnsEmployeeDTO() {
         // Arrange
         when(employeeRepository.existsEmployeeByEmail(employee1.getEmail())).thenReturn(false);
         when(mapper.toEntity(employee1DTO)).thenReturn(employee1);
@@ -115,6 +117,74 @@ public class EmployeeServiceTest {
         verify(employeeRepository, times(1)).existsEmployeeByEmail(anyString());
         verify(employeeRepository, never()).save(any());
         verifyNoMoreInteractions(employeeRepository);
+    }
+
+    @DisplayName("Get employee by id service call - Happy flow")
+    @Test
+    void whenGetEmployeeById_thenReturnsEmployeeDTO() {
+        // Arrange
+        when(employeeRepository.findById(employee1DTO.getId())).thenReturn(Optional.of(employee1));
+        when(mapper.toDTO(any(Employee.class))).thenReturn(employee1DTO);
+
+        // Act
+        final var actualEmployeeDTO = employeeService.getEmployeeById(employee1DTO.getId());
+
+        // Assert
+        assertNotNull(actualEmployeeDTO);
+        verify(employeeRepository, times(1)).findById(any(Long.class));
+        verify(mapper, times(1)).toDTO(any(Employee.class));
+        verifyNoMoreInteractions(employeeRepository, mapper);
+    }
+
+    @Test
+    void whenGetEmployeeByIdWhichNotExists_thenThrowsResourceNotFoundException() {
+        // Arrange
+        when(employeeRepository.findById(employee1DTO.getId())).thenReturn(Optional.empty());
+
+        // Act
+        assertThrows(ResourceNotFoundException.class, () -> employeeService.getEmployeeById(employee1DTO.getId()));
+
+        // Assert
+        verify(employeeRepository, times(1)).findById(any(Long.class));
+        verify(mapper, never()).toDTO(any(Employee.class));
+        verifyNoMoreInteractions(employeeRepository, mapper);
+    }
+
+    @DisplayName("Update employee service call - Happy flow")
+    @Test
+    void whenUpdateEmployee_thenReturnsUpdatedEmployeeDTO() {
+        // Arrange
+        when(employeeRepository.findById(employee1DTO.getId())).thenReturn(Optional.of(employee1));
+        when(mapper.toDTO(any(Employee.class))).thenReturn(employee1DTO);
+        when(mapper.toEntity(employee1DTO)).thenReturn(employee1);
+        when(employeeRepository.save(employee1)).thenReturn(employee1);
+        when(mapper.toDTO(employee1)).thenReturn(employee1DTO);
+
+        // Act
+        final var updatedEmployee = employeeService.updateEmployee(employee1DTO);
+
+        // Assert
+        assertNotNull(updatedEmployee);
+        verify(employeeRepository, times(1)).findById(employee1DTO.getId());
+        verify(mapper, times(1)).toEntity(any(EmployeeDTO.class));
+        verify(mapper, times(2)).toDTO(any(Employee.class));
+        verify(employeeRepository, times(1)).save(any(Employee.class));
+        verifyNoMoreInteractions(employeeRepository, mapper);
+    }
+
+    @Test
+    void whenUpdateEmployeeWhichNotExists_thenThrowsResourceNotFoundException() {
+        // Arrange
+        when(employeeRepository.findById(employee1DTO.getId())).thenReturn(Optional.empty());
+
+        // Act
+        assertThrows(ResourceNotFoundException.class, () -> employeeService.updateEmployee(employee1DTO));
+
+        // Assert
+        verify(employeeRepository, times(1)).findById(any(Long.class));
+        verify(mapper, never()).toDTO(any(Employee.class));
+        verify(employeeRepository, never()).save(any());
+        verifyNoMoreInteractions(employeeRepository, mapper);
     }
 
 }
