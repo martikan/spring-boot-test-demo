@@ -47,4 +47,11 @@ public class EmployeeServiceImpl implements EmployeeService {
         dto.setId(null);
         return mapper.toDTO(employeeRepository.save(mapper.toEntity(dto)));
     }
+
+    @Override
+    public void deleteEmployee(Long id) {
+        // Check is employee exist
+        getEmployeeById(id);
+        employeeRepository.deleteById(id);
+    }
 }

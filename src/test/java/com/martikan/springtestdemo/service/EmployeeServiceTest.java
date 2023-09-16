@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -157,6 +158,9 @@ public class EmployeeServiceTest {
         when(employeeRepository.findById(employee1DTO.getId())).thenReturn(Optional.of(employee1));
         when(mapper.toDTO(any(Employee.class))).thenReturn(employee1DTO);
         when(mapper.toEntity(employee1DTO)).thenReturn(employee1);
+        final var updatedEmail = "test";
+        employee1.setEmail(updatedEmail);
+        employee1DTO.setEmail(updatedEmail);
         when(employeeRepository.save(employee1)).thenReturn(employee1);
         when(mapper.toDTO(employee1)).thenReturn(employee1DTO);
 
@@ -165,6 +169,7 @@ public class EmployeeServiceTest {
 
         // Assert
         assertNotNull(updatedEmployee);
+        assertEquals(updatedEmail, updatedEmployee.getEmail());
         verify(employeeRepository, times(1)).findById(employee1DTO.getId());
         verify(mapper, times(1)).toEntity(any(EmployeeDTO.class));
         verify(mapper, times(2)).toDTO(any(Employee.class));
@@ -185,6 +190,38 @@ public class EmployeeServiceTest {
         verify(mapper, never()).toDTO(any(Employee.class));
         verify(employeeRepository, never()).save(any());
         verifyNoMoreInteractions(employeeRepository, mapper);
+    }
+
+    @DisplayName("Delete employee by id service call - Happy flow")
+    @Test
+    void whenDeleteEmployeeById_thenNothing() {
+        // Arrange
+        final var employeeId = 1L;
+        when(employeeRepository.findById(employeeId)).thenReturn(Optional.of(employee1));
+        when(mapper.toDTO(any(Employee.class))).thenReturn(employee1DTO);
+        doNothing().when(employeeRepository).deleteById(employeeId);
+
+        // Act
+        employeeService.deleteEmployee(employeeId);
+
+        // Assert
+        verify(employeeRepository, times(1)).deleteById(employeeId);
+        verifyNoMoreInteractions(employeeRepository);
+    }
+
+    @Test
+    void whenDeleteEmployeeByIdAndEmployeeNotFound_thenThrowsResourceNotFoundException() {
+        // Arrange
+        final var employeeId = 1L;
+        when(employeeRepository.findById(employeeId)).thenReturn(Optional.empty());
+
+        // Act
+        assertThrows(ResourceNotFoundException.class, () -> employeeService.deleteEmployee(employeeId));
+
+        // Assert
+        verify(employeeRepository, times(1)).findById(employeeId);
+        verify(employeeRepository, never()).deleteById(employeeId);
+        verifyNoMoreInteractions(employeeRepository);
     }
 
 }
