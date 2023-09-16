@@ -58,12 +58,11 @@ public class EmployeeServiceTest {
         employee1.setLastName(faker.name().lastName());
         employee1.setEmail(employee1.getLastName() + "@gmail.com");
 
-        employee1DTO = EmployeeDTO.builder()
-                .id(employee1.getId())
-                .firstName(employee1.getFirstName())
-                .lastName(employee1.getLastName())
-                .email(employee1.getEmail())
-                .build();
+        employee1DTO = new EmployeeDTO();
+        employee1DTO.setId(employee1.getId());
+        employee1DTO.setFirstName(employee1.getFirstName());
+        employee1DTO.setLastName(employee1.getLastName());
+        employee1DTO.setEmail(employee1.getEmail());
     }
 
     @Test

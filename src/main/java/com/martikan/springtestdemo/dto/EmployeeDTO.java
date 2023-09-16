@@ -1,26 +1,29 @@
 package com.martikan.springtestdemo.dto;
 
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.hibernate.validator.constraints.Length;
 
+import java.io.Serial;
+import java.io.Serializable;
+
 @Data
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-@Builder
-public class EmployeeDTO {
+public class EmployeeDTO implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 8065406167659624095L;
 
     @EqualsAndHashCode.Include
     private Long id;
 
-    @NotBlank
+    @NotNull
     @Length(max = 50)
     private String firstName;
 
-    @NotBlank
+    @NotNull
     @Length(max = 100)
     private String lastName;
 
