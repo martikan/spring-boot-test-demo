@@ -51,7 +51,7 @@ public class EmployeeServiceTest {
     private EmployeeDTO employee1DTO;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         employee1 = new Employee();
         employee1.setId(1L);
         employee1.setFirstName(faker.name().firstName());

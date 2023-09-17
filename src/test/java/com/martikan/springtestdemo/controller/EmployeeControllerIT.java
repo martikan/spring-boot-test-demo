@@ -2,18 +2,15 @@ package com.martikan.springtestdemo.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.javafaker.Faker;
+import com.martikan.springtestdemo.SpringTestDemoApplicationIT;
 import com.martikan.springtestdemo.apiConstant.Routes;
+import com.martikan.springtestdemo.domain.Employee;
 import com.martikan.springtestdemo.dto.EmployeeDTO;
-import com.martikan.springtestdemo.exception.ResourceNotFoundException;
-import com.martikan.springtestdemo.service.EmployeeService;
+import com.martikan.springtestdemo.repository.EmployeeRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.data.domain.Pageable;
-import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.ArrayList;
 
@@ -21,10 +18,6 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.oneOf;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -33,19 +26,19 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest
-public class EmployeeControllerTest {
+public class EmployeeControllerIT extends SpringTestDemoApplicationIT {
 
     private final Faker faker = new Faker();
 
     @Autowired
-    private MockMvc mockMvc;
-
-    @MockBean
-    private EmployeeService employeeService;
+    private EmployeeRepository employeeRepository;
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    private Employee employee1;
+
+    private Employee employee2;
 
     private EmployeeDTO employeeDTO1;
 
@@ -53,43 +46,40 @@ public class EmployeeControllerTest {
 
     @BeforeEach
     void setup() {
+        employee1 = new Employee();
+        employee1.setFirstName(faker.name().firstName());
+        employee1.setLastName(faker.name().lastName());
+        employee1.setEmail(employee1.getLastName().toLowerCase().trim() + "@gmail.com");
+
+        employee2 = new Employee();
+        employee2.setFirstName(faker.name().firstName());
+        employee2.setLastName(faker.name().lastName());
+        employee2.setEmail(employee2.getLastName().toLowerCase().trim() + "@gmail.com");
+
         employeeDTO1 = new EmployeeDTO();
-        employeeDTO1.setId(1L);
-        employeeDTO1.setFirstName(faker.name().firstName());
-        employeeDTO1.setLastName(faker.name().lastName());
-        employeeDTO1.setEmail(employeeDTO1.getLastName().toLowerCase().trim() + "@gmail.com");
+        employeeDTO1.setFirstName(employee1.getFirstName());
+        employeeDTO1.setLastName(employee1.getLastName());
+        employeeDTO1.setEmail(employee1.getEmail());
 
         employeeDTO2 = new EmployeeDTO();
-        employeeDTO2.setId(2L);
-        employeeDTO2.setFirstName(faker.name().firstName());
-        employeeDTO2.setLastName(faker.name().lastName());
-        employeeDTO2.setEmail(employeeDTO2.getLastName().toLowerCase().trim() + "@gmail.com");
+        employeeDTO2.setFirstName(employee2.getFirstName());
+        employeeDTO2.setLastName(employee2.getLastName());
+        employeeDTO2.setEmail(employee2.getEmail());
     }
 
-    @Test
-    void whenSaveEmployee_thenReturnsSavedEmployeeWithStatusCREATED() throws Exception {
-        // Arrange
-        when(employeeService.saveEmployee(employeeDTO1)).thenAnswer((invocation -> invocation.getArgument(0)));
-
-        // Act
-        final var res = mockMvc.perform(post(Routes.EMPLOYEE_V1_PATH)
-                .contentType(APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(employeeDTO1)));
-
-        // Assert
-        res.andExpect(status().isCreated())
-                .andExpect(jsonPath("$.firstName", is(employeeDTO1.getFirstName())))
-                .andExpect(jsonPath("$.lastName", is(employeeDTO1.getLastName())))
-                .andExpect(jsonPath("$.email", is(employeeDTO1.getEmail())));
+    @AfterEach
+    void tearDown() {
+        employeeRepository.deleteAll();
+        employeeRepository.flush();
     }
 
     @Test
     void whenGetEmployees_thenReturnsListOfEmployeesWithStatusOK() throws Exception {
         // Arrange
-        final var employeesList = new ArrayList<EmployeeDTO>();
-        employeesList.add(employeeDTO1);
-        employeesList.add(employeeDTO2);
-        when(employeeService.getAllEmployees(any(Pageable.class))).thenReturn(employeesList);
+        final var employeesForSave = new ArrayList<Employee>();
+        employeesForSave.add(employee1);
+        employeesForSave.add(employee2);
+        employeeRepository.saveAllAndFlush(employeesForSave);
 
         // Act
         final var res = mockMvc.perform(get(Routes.EMPLOYEE_V1_PATH)
@@ -97,17 +87,16 @@ public class EmployeeControllerTest {
 
         // Assert
         res.andExpect(status().isOk())
-            .andExpect(jsonPath("$[*].id",
-                    everyItem(oneOf(employeeDTO1.getId().intValue(), employeeDTO2.getId().intValue()))))
-            .andExpect(jsonPath("$", hasSize(2)));
+                .andExpect(jsonPath("$[*].email",
+                        everyItem(oneOf(employeeDTO1.getEmail(), employeeDTO2.getEmail()))))
+                .andExpect(jsonPath("$", hasSize(2)));
     }
 
-    @DisplayName("Get employee by id API call - Happy flow")
     @Test
     void whenGetEmployeeById_thenReturnsEmployeeWithStatusOK() throws Exception {
         // Arrange
-        final var employeeId = employeeDTO1.getId();
-        when(employeeService.getEmployeeById(employeeId)).thenReturn(employeeDTO1);
+        final var savedEmployee = employeeRepository.saveAndFlush(employee1);
+        final var employeeId = savedEmployee.getId();
 
         // Act
         final var res = mockMvc.perform(get(Routes.EMPLOYEE_V1_PATH + "/{id}", employeeId));
@@ -123,7 +112,6 @@ public class EmployeeControllerTest {
     void whenGetEmployeeByIdWhenIdNotExists_thenThrowsResourceNotFoundException() throws Exception {
         // Arrange
         final var employeeId = 111L;
-        doThrow(ResourceNotFoundException.class).when(employeeService).getEmployeeById(employeeId);
 
         // Act
         final var res = mockMvc.perform(get(Routes.EMPLOYEE_V1_PATH + "/{id}", employeeId));
@@ -132,16 +120,13 @@ public class EmployeeControllerTest {
         res.andExpect(status().isNotFound());
     }
 
-    @DisplayName("Update employee by id API call - Happy flow")
     @Test
     void whenUpdateEmployeeById_thenReturnsUpdatedEmployeeWithStatusOK() throws Exception {
         // Arrange
-        final var employeeId = employeeDTO1.getId();
+        final var savedEmployee = employeeRepository.saveAndFlush(employee1);
+        final var employeeId = savedEmployee.getId();
         final var updatedEmployee = employeeDTO2;
         updatedEmployee.setId(employeeId);
-        when(employeeService.getEmployeeById(employeeId)).thenReturn(employeeDTO1);
-        when(employeeService.updateEmployee(any(EmployeeDTO.class)))
-                .thenAnswer((invocation -> invocation.getArgument(0)));
 
         // Act
         final var res = mockMvc.perform(put(Routes.EMPLOYEE_V1_PATH + "/{id}", employeeId)
@@ -162,7 +147,6 @@ public class EmployeeControllerTest {
         final var employeeId = employeeDTO1.getId();
         final var updatedEmployee = employeeDTO2;
         updatedEmployee.setId(employeeId);
-        doThrow(ResourceNotFoundException.class).when(employeeService).updateEmployee(updatedEmployee);
 
         // Act
         final var res = mockMvc.perform(put(Routes.EMPLOYEE_V1_PATH + "/{id}", employeeId)
@@ -173,18 +157,32 @@ public class EmployeeControllerTest {
         res.andExpect(status().isNotFound());
     }
 
-    @DisplayName("Delete employee by id API call - Happy flow")
     @Test
     void whenDeleteEmployeeById_thenReturnsStatusNO_CONTENT() throws Exception {
         // Arrange
-        final var employeeId = 1L;
-        doNothing().when(employeeService).deleteEmployee(employeeId);
+        final var savedEmployee = employeeRepository.saveAndFlush(employee1);
+        final var employeeId = savedEmployee.getId();
 
         // Act
         final var res = mockMvc.perform(delete(Routes.EMPLOYEE_V1_PATH + "/{id}", employeeId));
 
         // Assert
         res.andExpect(status().isNoContent());
+    }
+
+    @Test
+    void whenSaveEmployee_thenReturnsSavedEmployeeWithStatusCREATED() throws Exception {
+        // Arrange
+        // Act
+        final var res = mockMvc.perform(post(Routes.EMPLOYEE_V1_PATH)
+                .contentType(APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(employeeDTO1)));
+
+        // Assert
+        res.andExpect(status().isCreated())
+                .andExpect(jsonPath("$.firstName", is(employeeDTO1.getFirstName())))
+                .andExpect(jsonPath("$.lastName", is(employeeDTO1.getLastName())))
+                .andExpect(jsonPath("$.email", is(employeeDTO1.getEmail())));
     }
 
 }

@@ -26,7 +26,7 @@ public class EmployeeRepositoryIT extends SpringTestDemoApplicationIT {
     private Employee employee2;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         employee1 = new Employee();
         employee1.setFirstName(faker.name().firstName());
         employee1.setLastName(faker.name().lastName());
@@ -39,7 +39,7 @@ public class EmployeeRepositoryIT extends SpringTestDemoApplicationIT {
     }
 
     @AfterEach
-    public void tearDown() {
+    void tearDown() {
         employeeRepository.deleteAll();
     }
 
